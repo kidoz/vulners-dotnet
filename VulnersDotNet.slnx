@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VulnersDotNet/VulnersDotNet.csproj" />
+    <Project Path="src/VulnersDotNet.Examples/VulnersDotNet.Examples.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VulnersDotNet.Tests/VulnersDotNet.Tests.csproj" />
+  </Folder>
+</Solution>
