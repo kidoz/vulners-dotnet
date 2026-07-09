@@ -73,7 +73,9 @@ public static class VulnersServiceCollectionExtensions
 
     private static void ConfigureHttpClient(HttpClient client, VulnersOptions options)
     {
-        client.BaseAddress = new Uri(options.BaseUrl);
+        // V3 services issue relative requests against the client's BaseAddress;
+        // V4 services resolve their own absolute URLs from options.V4BaseUrl.
+        client.BaseAddress = new Uri(options.V3BaseUrl);
         client.Timeout = options.Timeout;
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             $"VulnersDotNet/{typeof(VulnersServiceCollectionExtensions).Assembly.GetName().Version}"

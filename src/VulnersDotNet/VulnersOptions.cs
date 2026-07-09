@@ -13,10 +13,13 @@ public class VulnersOptions
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
-    private string _baseUrl = "https://vulners.com/api/v3/";
+    private string _baseUrl = "https://vulners.com/api/";
 
     /// <summary>
-    /// Gets or sets the base URL for the Vulners V3 API. Defaults to the official API.
+    /// Gets or sets the version-agnostic base URL for the Vulners API (the common
+    /// root shared by the V3 and V4 surfaces). Defaults to <c>https://vulners.com/api/</c>.
+    /// The <c>v3/</c> and <c>v4/</c> segments are appended automatically to form
+    /// <see cref="V3BaseUrl"/> and <see cref="V4BaseUrl"/>.
     /// A trailing slash is added automatically if missing.
     /// </summary>
     [SuppressMessage(
@@ -30,11 +33,30 @@ public class VulnersOptions
         set => _baseUrl = NormalizeUrl(value);
     }
 
+    private string? _v3BaseUrl;
+
+    /// <summary>
+    /// Gets or sets the base URL for the Vulners V3 API.
+    /// Defaults to the <c>v3/</c> sibling of <see cref="BaseUrl"/>.
+    /// Set explicitly when using a proxy or non-standard URL layout.
+    /// A trailing slash is added automatically if missing.
+    /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1056:URI-like properties should not be strings",
+        Justification = "Strings are preferred for options configuration"
+    )]
+    public string V3BaseUrl
+    {
+        get => _v3BaseUrl ?? DeriveVersionUrl(_baseUrl, "v3");
+        set => _v3BaseUrl = NormalizeUrl(value);
+    }
+
     private string? _v4BaseUrl;
 
     /// <summary>
     /// Gets or sets the base URL for the Vulners V4 API.
-    /// Defaults to the V4 sibling of <see cref="BaseUrl"/> (replaces /v3/ with /v4/).
+    /// Defaults to the <c>v4/</c> sibling of <see cref="BaseUrl"/>.
     /// Set explicitly when using a proxy or non-standard URL layout.
     /// A trailing slash is added automatically if missing.
     /// </summary>
@@ -45,7 +67,7 @@ public class VulnersOptions
     )]
     public string V4BaseUrl
     {
-        get => _v4BaseUrl ?? DeriveV4Url(_baseUrl);
+        get => _v4BaseUrl ?? DeriveVersionUrl(_baseUrl, "v4");
         set => _v4BaseUrl = NormalizeUrl(value);
     }
 
@@ -60,22 +82,10 @@ public class VulnersOptions
     /// </summary>
     internal void Validate()
     {
-        // If V4BaseUrl was not explicitly set and derivation is a no-op
-        // (BaseUrl doesn't contain /v3/), the V4 calls would go to the wrong endpoint.
-        if (
-            _v4BaseUrl == null
-#if NET8_0_OR_GREATER
-            && string.Equals(_baseUrl, DeriveV4Url(_baseUrl), StringComparison.Ordinal)
-#else
-            && _baseUrl == DeriveV4Url(_baseUrl)
-#endif
-        )
-        {
-            throw new InvalidOperationException(
-                $"Cannot derive V4 API URL from BaseUrl '{_baseUrl}' — no '/v3/' segment found. "
-                    + "Set VulnersOptions.V4BaseUrl explicitly when using a non-standard URL layout."
-            );
-        }
+        // Accessing the derived URLs forces normalization/validation of the
+        // effective V3 and V4 endpoints and surfaces any misconfiguration early.
+        _ = V3BaseUrl;
+        _ = V4BaseUrl;
     }
 
     private static string NormalizeUrl(string url)
@@ -97,21 +107,13 @@ public class VulnersOptions
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out _))
         {
-            throw new ArgumentException(
-                $"'{url}' is not a valid absolute URL.",
-                nameof(url)
-            );
+            throw new ArgumentException($"'{url}' is not a valid absolute URL.", nameof(url));
         }
 
         return url;
     }
 
-    private static string DeriveV4Url(string baseUrl)
-    {
-#if NET8_0_OR_GREATER
-        return baseUrl.Replace("/v3/", "/v4/", StringComparison.Ordinal);
-#else
-        return baseUrl.Replace("/v3/", "/v4/");
-#endif
-    }
+    // baseUrl is guaranteed by NormalizeUrl to end with a trailing slash.
+    private static string DeriveVersionUrl(string baseUrl, string version) =>
+        baseUrl + version + "/";
 }
