@@ -176,4 +176,24 @@ public class AuditServiceTests : IntegrationTestBase
             os => os.Contains("debian", System.StringComparison.OrdinalIgnoreCase)
         );
     }
+
+    [Fact]
+    public async Task SbomAuditAsync_ReturnsResults()
+    {
+        const string sbom =
+            /*lang=json,strict*/
+            "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.4\",\"version\":1,"
+            + "\"components\":[{\"type\":\"library\",\"name\":\"log4j-core\",\"version\":\"2.14.1\","
+            + "\"purl\":\"pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1\"}]}";
+
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(sbom));
+        var result = await Client.Audit.SbomAuditAsync(
+            stream,
+            "sbom.json",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Object, result.ValueKind);
+        Assert.True(result.TryGetProperty("data", out _));
+    }
 }

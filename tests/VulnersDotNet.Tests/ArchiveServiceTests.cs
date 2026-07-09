@@ -18,4 +18,56 @@ public class ArchiveServiceTests : IntegrationTestBase
         Assert.Equal(0x50, header[0]); // 'P'
         Assert.Equal(0x4B, header[1]); // 'K'
     }
+
+    [Fact]
+    public async Task GetCollectionStateAsync_ReturnsState()
+    {
+        var state = await Client.Archive.GetCollectionStateAsync(
+            "cve",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.False(string.IsNullOrEmpty(state.Cursor), "cursor should be populated");
+        Assert.True(state.TotalDocs > 0, "total_docs should be positive");
+    }
+
+    [Fact]
+    public async Task GetCollectionUpdateAsync_DecompressesRecentChanges()
+    {
+        // Exercises the gzip-decompress path over a small, recent window.
+        var after = DateTimeOffset.UtcNow.AddHours(-1);
+        var updates = await Client.Archive.GetCollectionUpdateAsync(
+            "cve",
+            after,
+            TestContext.Current.CancellationToken
+        );
+
+        // May legitimately be empty in a quiet hour, but the call must succeed and parse.
+        Assert.NotNull(updates);
+    }
+
+    [Fact]
+    public async Task GetFamilyStateAsync_ReturnsState()
+    {
+        var state = await Client.Archive.GetFamilyStateAsync(
+            "unix",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.False(string.IsNullOrEmpty(state.Cursor), "cursor should be populated");
+        Assert.True(state.TotalDocs > 0, "total_docs should be positive");
+    }
+
+    [Fact]
+    public async Task GetFamilyUpdateAsync_DecompressesRecentChanges()
+    {
+        var after = DateTimeOffset.UtcNow.AddHours(-1);
+        var updates = await Client.Archive.GetFamilyUpdateAsync(
+            "unix",
+            after,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updates);
+    }
 }

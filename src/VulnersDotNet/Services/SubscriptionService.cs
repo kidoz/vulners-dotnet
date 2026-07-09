@@ -78,10 +78,7 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
         ArgumentException.ThrowIfNullOrEmpty(subscriptionId);
 #else
         if (string.IsNullOrEmpty(subscriptionId))
-            throw new ArgumentException(
-                "Value cannot be null or empty.",
-                nameof(subscriptionId)
-            );
+            throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
         var request = new EditEmailSubscriptionRequest
@@ -111,10 +108,7 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
         ArgumentException.ThrowIfNullOrEmpty(subscriptionId);
 #else
         if (string.IsNullOrEmpty(subscriptionId))
-            throw new ArgumentException(
-                "Value cannot be null or empty.",
-                nameof(subscriptionId)
-            );
+            throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
         var request = new RemoveEmailSubscriptionRequest

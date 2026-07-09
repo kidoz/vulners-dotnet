@@ -47,10 +47,7 @@ public class SearchServiceTests : IntegrationTestBase
             cancellationToken: ct
         );
 
-        Assert.True(
-            both.Documents.Count >= 2,
-            "Need at least 2 results to test skip"
-        );
+        Assert.True(both.Documents.Count >= 2, "Need at least 2 results to test skip");
 
         var skipped = await Client.Search.SearchAsync(
             "type:cve",
@@ -139,6 +136,18 @@ public class SearchServiceTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task SearchCpeMatchAsync_ResolvesSoftwareToCpe()
+    {
+        var result = await Client.Search.SearchCpeMatchAsync(
+            new[] { "nginx 1.18.0", "openssl 3.0.9" },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, result.ValueKind);
+        Assert.True(result.GetArrayLength() > 0);
+    }
+
+    [Fact]
     public async Task GetMultipleBulletinsAsync_ReturnsDocuments()
     {
         var ids = new[] { "CVE-2021-44228", "CVE-2023-44487" };
@@ -161,6 +170,74 @@ public class SearchServiceTests : IntegrationTestBase
         );
 
         Assert.NotEqual(default, result);
+    }
+
+    [Fact]
+    public async Task GetMultipleBulletinReferencesAsync_ReturnsData()
+    {
+        var result = await Client.Search.GetMultipleBulletinReferencesAsync(
+            new[] { "CVE-2021-44228", "CVE-2023-44487" },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(default, result);
+    }
+
+    [Fact]
+    public async Task GetBulletinWithReferencesAsync_ReturnsDocumentsAndReferences()
+    {
+        var result = await Client.Search.GetBulletinWithReferencesAsync(
+            "CVE-2021-44228",
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Object, result.ValueKind);
+        Assert.True(result.TryGetProperty("documents", out _));
+        Assert.True(result.TryGetProperty("references", out _));
+    }
+
+    [Fact]
+    public async Task GetMultipleBulletinsWithReferencesAsync_ReturnsDocumentsAndReferences()
+    {
+        var result = await Client.Search.GetMultipleBulletinsWithReferencesAsync(
+            new[] { "CVE-2021-44228", "CVE-2023-44487" },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Object, result.ValueKind);
+        Assert.True(result.TryGetProperty("documents", out _));
+        Assert.True(result.TryGetProperty("references", out _));
+    }
+
+    [Fact]
+    public async Task SearchAllAsync_CollectsUpToLimit()
+    {
+        var result = await Client.Search.SearchAllAsync(
+            "type:cve",
+            limit: 250,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Total > 0);
+        Assert.NotEmpty(result.Documents);
+        Assert.True(
+            result.Documents.Count <= 250,
+            "Collected documents should not exceed the requested limit"
+        );
+    }
+
+    [Fact]
+    public async Task SearchExploitsAllAsync_ReturnsExploits()
+    {
+        var result = await Client.Search.SearchExploitsAllAsync(
+            "log4j",
+            limit: 120,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Documents);
+        Assert.True(result.Documents.Count <= 120);
     }
 
     [Fact]

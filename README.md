@@ -7,7 +7,7 @@
 
 ## Features
 
-- **Search** — Lucene full-text search, bulletin lookup by ID, query autocomplete, CPE search
+- **Search** — Lucene full-text search (with auto-pagination), bulletin lookup by ID, references, query autocomplete, CPE search
 - **Audit** — Linux package audit (RPM/DEB), Windows KB audit, Windows software audit, CPE-based software audit (V4), host context audit (V4)
 - **Archive** — OS CVE archive download (ZIP), collection download and incremental updates
 - **Subscription** — Email subscription management (list, add, edit, delete)
@@ -177,19 +177,31 @@ await client.Subscription.DeleteAsync(subscriptionId: "sub-id");
 
 | Endpoint | Method |
 |---|---|
-| `POST /api/v3/search/lucene` | `Search.SearchAsync()` |
-| `POST /api/v3/search/id` | `Search.GetBulletinAsync()` |
+| `POST /api/v3/search/lucene` | `Search.SearchAsync()` / `Search.SearchAllAsync()` |
+| `POST /api/v3/search/lucene` (exploits) | `Search.SearchExploitsAsync()` / `Search.SearchExploitsAllAsync()` |
+| `POST /api/v3/search/id` | `Search.GetBulletinAsync()` / `Search.GetMultipleBulletinsAsync()` |
+| `POST /api/v3/search/id` (references) | `Search.GetBulletinReferencesAsync()` / `Search.GetMultipleBulletinReferencesAsync()` / `Search.GetBulletinWithReferencesAsync()` / `Search.GetMultipleBulletinsWithReferencesAsync()` |
 | `POST /api/v3/search/autocomplete` | `Search.AutocompleteAsync()` |
 | `GET /api/v4/search/cpe` | `Search.SearchCpeAsync()` |
+| `POST /api/v3/search/suggest` | `Misc.GetSuggestionAsync()` |
+| `GET /api/v3/apiKey/info` | `Misc.GetApiKeyInfoAsync()` |
 | `POST /api/v3/audit/audit` | `Audit.AuditPackagesAsync()` |
 | `POST /api/v4/audit/software` | `Audit.AuditSoftwareAsync()` |
 | `POST /api/v4/audit/host` | `Audit.AuditHostAsync()` |
+| `POST /api/v4/audit/cve` · `/cves` | `Audit.AuditCveAsync()` · `AuditCvesAsync()` |
+| `POST /api/v4/audit/library` | `Audit.AuditLibraryAsync()` |
+| `POST /api/v4/audit/smart` | `Audit.AuditSmartAsync()` |
+| `POST /api/v4/audit/metadata` | `Audit.AuditPackageMetadataAsync()` |
+| `POST /api/v4/audit/package/{type}` | `Audit.AuditPackageAsync()` |
+| `POST /api/v4/search/cpe` | `Search.SearchCpeMatchAsync()` |
 | `POST /api/v3/audit/kb` | `Audit.AuditWindowsKbAsync()` |
 | `POST /api/v3/audit/winaudit` | `Audit.AuditWindowsAsync()` |
 | `GET /api/v3/audit/getSupportedOS` | `Audit.GetSupportedOsAsync()` |
 | `GET /api/v3/archive/distributive` | `Archive.DownloadDistributiveAsync()` |
 | `GET /api/v4/archive/collection` | `Archive.GetCollectionAsync()` |
 | `GET /api/v4/archive/collection-update` | `Archive.GetCollectionUpdateAsync()` |
+| `GET /api/v4/archive/collection-state` | `Archive.GetCollectionStateAsync()` |
+| `GET /api/v4/archive/family` · `family-update` · `family-state` | `Archive.GetFamilyAsync()` · `GetFamilyUpdateAsync()` · `GetFamilyStateAsync()` |
 | `POST /api/v3/subscriptions/listEmailSubscriptions` | `Subscription.ListAsync()` |
 | `POST /api/v3/subscriptions/addEmailSubscription` | `Subscription.AddAsync()` |
 | `POST /api/v3/subscriptions/editEmailSubscription` | `Subscription.EditAsync()` |
@@ -201,8 +213,11 @@ await client.Subscription.DeleteAsync(subscriptionId: "sub-id");
 services.AddVulners(options =>
 {
     options.ApiKey = "your-api-key";
-    options.BaseUrl = "https://vulners.com/api/v3/";  // default
-    options.Timeout = TimeSpan.FromSeconds(30);        // default
+    options.BaseUrl = "https://vulners.com/api/";  // default (version-agnostic root)
+    // The "v3/" and "v4/" segments are appended automatically to form V3BaseUrl / V4BaseUrl.
+    // Override them individually only for a proxy or non-standard layout:
+    // options.V4BaseUrl = "https://proxy.example.com/api/v4/";
+    options.Timeout = TimeSpan.FromSeconds(30);     // default
 });
 ```
 

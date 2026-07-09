@@ -20,6 +20,13 @@ public record SearchResponseData
     /// </summary>
     [JsonPropertyName("total")]
     public int Total { get; init; }
+
+    /// <summary>
+    /// Gets the maximum number of documents a single search request may return.
+    /// Used to page through result sets larger than one request.
+    /// </summary>
+    [JsonPropertyName("maxSearchSize")]
+    public int MaxSearchSize { get; init; }
 }
 
 /// <summary>
@@ -531,10 +538,7 @@ public readonly struct CpeSoftwareInput
         ArgumentException.ThrowIfNullOrEmpty(cpeString);
 #else
         if (string.IsNullOrEmpty(cpeString))
-            throw new ArgumentException(
-                "CPE string cannot be null or empty.",
-                nameof(cpeString)
-            );
+            throw new ArgumentException("CPE string cannot be null or empty.", nameof(cpeString));
 #endif
         Value = cpeString;
     }
@@ -1282,6 +1286,49 @@ public record SuggestionResponseData
     public IReadOnlyList<string> Suggest { get; init; } = Array.Empty<string>();
 }
 
+/// <summary>
+/// Information about the configured API key and its associated license,
+/// returned by <c>GET /api/v3/apiKey/info</c>.
+/// </summary>
+public record ApiKeyInfo
+{
+    /// <summary>
+    /// Human-readable name assigned to the API key.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether the owning license is currently active.
+    /// </summary>
+    [JsonPropertyName("active")]
+    public bool Active { get; init; }
+
+    /// <summary>
+    /// License type (e.g., "free", "trial", "commercial").
+    /// </summary>
+    [JsonPropertyName("license_type")]
+    public string LicenseType { get; init; } = string.Empty;
+
+    /// <summary>
+    /// License expiration timestamp.
+    /// </summary>
+    [JsonPropertyName("license_expiration")]
+    public DateTimeOffset? LicenseExpiration { get; init; }
+
+    /// <summary>
+    /// Remaining wallet credit for the license.
+    /// </summary>
+    [JsonPropertyName("credit")]
+    public double Credit { get; init; }
+
+    /// <summary>
+    /// Gets any additional fields not explicitly modeled.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
+}
+
 // ===================== Webhook =====================
 
 /// <summary>
@@ -1527,4 +1574,160 @@ public record ReportResponseData
     /// </summary>
     [JsonPropertyName("report")]
     public JsonElement Report { get; init; }
+}
+
+// ===================== Archive State (V4) =====================
+
+/// <summary>
+/// State of a CDN-cached archive stream, returned by the archive
+/// <c>collection-state</c> and <c>family-state</c> endpoints.
+/// </summary>
+public record ArchiveState
+{
+    /// <summary>
+    /// Cursor marking the newest record in the archive (an ISO-8601 timestamp).
+    /// Pass an earlier value as the <c>after</c> parameter of an update call.
+    /// </summary>
+    [JsonPropertyName("cursor")]
+    public string Cursor { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Time the archive was last uploaded to the CDN.
+    /// </summary>
+    [JsonPropertyName("upload_time")]
+    public DateTimeOffset? UploadTime { get; init; }
+
+    /// <summary>
+    /// Time the archive was last written.
+    /// </summary>
+    [JsonPropertyName("write_time")]
+    public DateTimeOffset? WriteTime { get; init; }
+
+    /// <summary>
+    /// Total number of documents in the archive.
+    /// </summary>
+    [JsonPropertyName("total_docs")]
+    public long TotalDocs { get; init; }
+
+    /// <summary>
+    /// Gets any additional fields not explicitly modeled.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
+}
+
+// ===================== apix V4 Audit =====================
+
+/// <summary>
+/// Request payload for POST /api/v4/audit/cve (single CVE audit).
+/// </summary>
+public record CveAuditRequest
+{
+    /// <summary>
+    /// CVE (or CAN) identifier, e.g. "CVE-2021-44228".
+    /// </summary>
+    [JsonPropertyName("cve")]
+    public string Cve { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Request payload for POST /api/v4/audit/cves (batch CVE audit, 1..500 items).
+/// </summary>
+public record CvesAuditRequest
+{
+    /// <summary>
+    /// CVE (or CAN) identifiers.
+    /// </summary>
+    [JsonPropertyName("cve")]
+    public IEnumerable<string> Cve { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>
+/// Request payload for POST /api/v4/audit/library (library package audit, 1..2500 packages).
+/// </summary>
+public record LibraryAuditRequest
+{
+    /// <summary>
+    /// Package identifiers to audit.
+    /// </summary>
+    [JsonPropertyName("packages")]
+    public IEnumerable<string> Packages { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Include unofficial packages.
+    /// </summary>
+    [JsonPropertyName("includeUnofficial")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IncludeUnofficial { get; init; }
+
+    /// <summary>
+    /// Include candidate vulnerabilities.
+    /// </summary>
+    [JsonPropertyName("includeCandidates")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IncludeCandidates { get; init; }
+
+    /// <summary>
+    /// Include "any" version vulnerabilities.
+    /// </summary>
+    [JsonPropertyName("includeAnyVersion")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IncludeAnyVersion { get; init; }
+
+    /// <summary>
+    /// Add CVE list metrics to the response (non-free licenses only).
+    /// </summary>
+    [JsonPropertyName("cvelistMetrics")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool CvelistMetrics { get; init; }
+}
+
+/// <summary>
+/// Request payload for POST /api/v4/audit/smart (smart software-string audit, 1..500 items).
+/// </summary>
+public record SmartAuditRequest
+{
+    /// <summary>
+    /// Free-form software strings to resolve and audit (each 1..512 chars).
+    /// </summary>
+    [JsonPropertyName("software")]
+    public IEnumerable<string> Software { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>
+/// Request payload for POST /api/v4/audit/metadata (package metadata lookup).
+/// </summary>
+public record PackageMetadataRequest
+{
+    /// <summary>
+    /// Package registry / ecosystem (e.g., "pip", "npm", "maven").
+    /// </summary>
+    [JsonPropertyName("registry")]
+    public string Registry { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Package name.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Package version.
+    /// </summary>
+    [JsonPropertyName("version")]
+    public string Version { get; init; } = string.Empty;
+}
+
+// ===================== CPE Match (V4) =====================
+
+/// <summary>
+/// Request payload for POST /api/v4/search/cpe (batch CPE resolution, 1..100 items).
+/// </summary>
+public record CpeMatchRequest
+{
+    /// <summary>
+    /// Raw software strings to resolve to CPEs (each 1..512 chars).
+    /// </summary>
+    [JsonPropertyName("software")]
+    public IEnumerable<string> Software { get; init; } = Array.Empty<string>();
 }

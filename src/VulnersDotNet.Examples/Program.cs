@@ -36,10 +36,21 @@ Console.WriteLine($"  Type:        {bulletin.Type}");
 Console.WriteLine($"  Published:   {bulletin.Published}");
 Console.WriteLine($"  CVSS:        {bulletin.Cvss?.Score} ({bulletin.Cvss?.Severity})");
 
+// --- Paginated Search (auto-collects across requests) ---
+Console.WriteLine("\n=== Paginated Search ===");
+var allResults = await client.Search.SearchAllAsync("type:cve", limit: 250);
+Console.WriteLine($"  Collected {allResults.Documents.Count} of {allResults.Total} matches");
+
 // --- Autocomplete ---
 Console.WriteLine("\n=== Autocomplete ===");
 var suggestions = await client.Search.AutocompleteAsync("heartbleed");
 Console.WriteLine($"  Suggestions: {string.Join(", ", suggestions.Take(5))}");
+
+// --- API key info ---
+Console.WriteLine("\n=== API Key Info ===");
+var keyInfo = await client.Misc.GetApiKeyInfoAsync();
+Console.WriteLine($"  License: {keyInfo.LicenseType} (active: {keyInfo.Active})");
+Console.WriteLine($"  Credit:  {keyInfo.Credit}");
 
 // --- CPE Search ---
 Console.WriteLine("\n=== CPE Search ===");
@@ -85,6 +96,31 @@ foreach (var item in softwareResults)
         Console.WriteLine($"    {vuln.Id}: {vuln.Title}");
     }
 }
+
+// --- V4 CVE audit (apix) ---
+Console.WriteLine("\n=== V4 CVE Audit ===");
+var cveAudit = await client.Audit.AuditCveAsync("CVE-2021-44228");
+Console.WriteLine($"  cve result kind: {cveAudit.ValueKind}");
+
+// --- V4 smart audit (resolve free-form software) ---
+Console.WriteLine("\n=== V4 Smart Audit ===");
+var smart = await client.Audit.AuditSmartAsync(new[] { "Apache Log4j 2.14.1" });
+Console.WriteLine($"  resolved items: {smart.GetArrayLength()}");
+
+// --- V4 manifest audit ---
+Console.WriteLine("\n=== V4 Package Manifest Audit ===");
+var pkgAudit = await client.Audit.AuditPackageAsync("pip", "django==3.0.0\n");
+Console.WriteLine($"  package audit kind: {pkgAudit.ValueKind}");
+
+// --- Batch CPE resolve ---
+Console.WriteLine("\n=== Batch CPE Resolve ===");
+var cpeMatch = await client.Search.SearchCpeMatchAsync(new[] { "nginx 1.18.0", "openssl 3.0.9" });
+Console.WriteLine($"  matched: {cpeMatch.GetArrayLength()}");
+
+// --- Archive collection state (incremental sync) ---
+Console.WriteLine("\n=== Archive Collection State ===");
+var state = await client.Archive.GetCollectionStateAsync("cve");
+Console.WriteLine($"  cursor: {state.Cursor}, total_docs: {state.TotalDocs}");
 
 // --- Supported OS ---
 Console.WriteLine("\n=== Supported OS ===");

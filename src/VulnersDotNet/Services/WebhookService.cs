@@ -27,8 +27,7 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
         CancellationToken cancellationToken = default
     )
     {
-        var url =
-            $"subscriptions/listWebhookSubscriptions/?apiKey={Uri.EscapeDataString(ApiKey)}";
+        var url = $"subscriptions/listWebhookSubscriptions/?apiKey={Uri.EscapeDataString(ApiKey)}";
         var response = await GetAsync<WebhookListResponseData>(url, cancellationToken)
             .ConfigureAwait(false);
         return response.Subscriptions;
@@ -64,10 +63,7 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
         ArgumentException.ThrowIfNullOrEmpty(subscriptionId);
 #else
         if (string.IsNullOrEmpty(subscriptionId))
-            throw new ArgumentException(
-                "Value cannot be null or empty.",
-                nameof(subscriptionId)
-            );
+            throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
         var request = new EditWebhookRequest
@@ -94,17 +90,10 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
         ArgumentException.ThrowIfNullOrEmpty(subscriptionId);
 #else
         if (string.IsNullOrEmpty(subscriptionId))
-            throw new ArgumentException(
-                "Value cannot be null or empty.",
-                nameof(subscriptionId)
-            );
+            throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
-        var request = new RemoveWebhookRequest
-        {
-            ApiKey = ApiKey,
-            SubscriptionId = subscriptionId,
-        };
+        var request = new RemoveWebhookRequest { ApiKey = ApiKey, SubscriptionId = subscriptionId };
         await PostAsync<RemoveWebhookRequest, object>(
                 "subscriptions/removeWebhookSubscription/",
                 request,
@@ -129,10 +118,7 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
         ArgumentException.ThrowIfNullOrEmpty(subscriptionId);
 #else
         if (string.IsNullOrEmpty(subscriptionId))
-            throw new ArgumentException(
-                "Value cannot be null or empty.",
-                nameof(subscriptionId)
-            );
+            throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
         var url =

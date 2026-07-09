@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Compression;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using VulnersDotNet.Exceptions;
 using VulnersDotNet.Models;
@@ -120,8 +122,7 @@ public abstract class BaseApiService
                     .Content.ReadAsStringAsync(cancellationToken)
                     .ConfigureAwait(false);
 #else
-                var errorContent = await response.Content.ReadAsStringAsync()
-                    .ConfigureAwait(false);
+                var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
                 throw new VulnersException(
                     $"HTTP error {(int)response.StatusCode}: {errorContent}",
@@ -280,6 +281,102 @@ public abstract class BaseApiService
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Sends a POST request with a raw text body and deserializes a V4 response.
+    /// The URL is resolved as a relative path against the configured V4 base URL.
+    /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "HttpClient extension methods accept strings"
+    )]
+    [SuppressMessage(
+        "Usage",
+        "CA2234:Pass system uri objects instead of strings",
+        Justification = "HttpClient accepts strings"
+    )]
+    protected async Task<TResponseData> PostV4RawAsync<TResponseData>(
+        string url,
+        string body,
+        string mediaType,
+        CancellationToken cancellationToken
+    )
+    {
+        var absoluteUrl = new Uri(_v4BaseUri, url).ToString();
+        using var content = new StringContent(body, Encoding.UTF8, mediaType);
+        using var response = await HttpClient
+            .PostAsync(absoluteUrl, content, cancellationToken)
+            .ConfigureAwait(false);
+        return await ProcessV4ResponseAsync<TResponseData>(response, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends a GET request to a V4 endpoint that streams a gzip-compressed JSON array
+    /// (the archive collection/family download endpoints), decompresses it, and
+    /// deserializes the result. These endpoints return a bare JSON document, not the
+    /// standard <c>{"result": ...}</c> envelope.
+    /// The URL is resolved as a relative path against the configured V4 base URL.
+    /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "HttpClient extension methods accept strings"
+    )]
+    [SuppressMessage(
+        "Usage",
+        "CA2234:Pass system uri objects instead of strings",
+        Justification = "HttpClient accepts strings"
+    )]
+    protected async Task<TResponseData> GetV4GzipJsonAsync<TResponseData>(
+        string url,
+        CancellationToken cancellationToken
+    )
+    {
+        var absoluteUrl = new Uri(_v4BaseUri, url).ToString();
+        using var response = await HttpClient
+            .GetAsync(absoluteUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+#if NET8_0_OR_GREATER
+            var errorContent = await response
+                .Content.ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false);
+#else
+            var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+#endif
+            throw new VulnersException(
+                $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                response.StatusCode
+            );
+        }
+
+#if NET8_0_OR_GREATER
+        var networkStream = await response
+            .Content.ReadAsStreamAsync(cancellationToken)
+            .ConfigureAwait(false);
+#else
+        var networkStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
+
+        using var _ = networkStream;
+        using var gzip = new GZipStream(networkStream, CompressionMode.Decompress);
+        var result = await JsonSerializer
+            .DeserializeAsync<TResponseData>(gzip, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result is null)
+        {
+            throw new VulnersException(
+                "Failed to deserialize the gzip-compressed archive response."
+            );
+        }
+
+        return result;
+    }
+
     private static async Task<TResponseData> ProcessV4ResponseAsync<TResponseData>(
         HttpResponseMessage response,
         CancellationToken cancellationToken
@@ -395,8 +492,7 @@ public abstract class BaseApiService
         public override int Read(byte[] buffer, int offset, int count) =>
             _inner.Read(buffer, offset, count);
 
-        public override long Seek(long offset, SeekOrigin origin) =>
-            _inner.Seek(offset, origin);
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
 
         public override void SetLength(long value) => _inner.SetLength(value);
 

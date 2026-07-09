@@ -59,6 +59,63 @@ internal sealed class SearchService : BaseApiService, ISearchService
     }
 
     /// <inheritdoc />
+    public async Task<SearchResponseData> SearchAllAsync(
+        string query,
+        int limit = 100,
+        IEnumerable<string>? fields = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(query);
+#else
+        if (string.IsNullOrEmpty(query))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(query));
+#endif
+
+        if (limit < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(limit),
+                limit,
+                "Limit must be greater than 0."
+            );
+        }
+
+        limit = Math.Min(limit, 10000);
+        var fieldsList = fields as IReadOnlyList<string> ?? fields?.ToArray();
+
+        var first = await SearchAsync(query, limit, 0, fieldsList, cancellationToken)
+            .ConfigureAwait(false);
+
+        var total = Math.Min(limit, first.Total);
+        var maxChunkSize = first.MaxSearchSize;
+        var documents = new List<SearchDocument>(first.Documents);
+        var offset = documents.Count;
+
+        while (offset < total && maxChunkSize > 0)
+        {
+            var chunkSize = Math.Min(maxChunkSize, total - offset);
+            var chunk = await SearchAsync(query, chunkSize, offset, fieldsList, cancellationToken)
+                .ConfigureAwait(false);
+            documents.AddRange(chunk.Documents);
+            if (chunk.Documents.Count < chunkSize)
+            {
+                break;
+            }
+
+            offset += chunk.Documents.Count;
+        }
+
+        return new SearchResponseData
+        {
+            Documents = documents,
+            Total = first.Total,
+            MaxSearchSize = maxChunkSize,
+        };
+    }
+
+    /// <inheritdoc />
     public async Task<BulletinData> GetBulletinAsync(
         string id,
         CancellationToken cancellationToken = default
@@ -155,6 +212,82 @@ internal sealed class SearchService : BaseApiService, ISearchService
     }
 
     /// <inheritdoc />
+    public async Task<JsonElement> GetMultipleBulletinReferencesAsync(
+        IEnumerable<string> ids,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(ids);
+#else
+        if (ids == null)
+            throw new ArgumentNullException(nameof(ids));
+#endif
+
+        var request = new IdSearchRequest
+        {
+            Ids = ids,
+            Fields = Array.Empty<string>(),
+            References = true,
+        };
+
+        var response = await PostAsync<IdSearchRequest, JsonElement>(
+                "search/id/",
+                request,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        if (response.TryGetProperty("references", out var references))
+        {
+            return references;
+        }
+
+        return response;
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> GetBulletinWithReferencesAsync(
+        string id,
+        IEnumerable<string>? fields = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(id);
+#else
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(id));
+#endif
+
+        return GetMultipleBulletinsWithReferencesAsync(new[] { id }, fields, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> GetMultipleBulletinsWithReferencesAsync(
+        IEnumerable<string> ids,
+        IEnumerable<string>? fields = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(ids);
+#else
+        if (ids == null)
+            throw new ArgumentNullException(nameof(ids));
+#endif
+
+        var request = new IdSearchRequest
+        {
+            Ids = ids,
+            Fields = fields,
+            References = true,
+        };
+
+        return PostAsync<IdSearchRequest, JsonElement>("search/id/", request, cancellationToken);
+    }
+
+    /// <inheritdoc />
     [SuppressMessage(
         "Design",
         "CA1054:URI-like parameters should not be strings",
@@ -195,28 +328,59 @@ internal sealed class SearchService : BaseApiService, ISearchService
             throw new ArgumentException("Value cannot be null or empty.", nameof(query));
 #endif
 
+        return SearchAsync(
+            BuildExploitQuery(query, lookupFields),
+            limit,
+            skip,
+            fields,
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public Task<SearchResponseData> SearchExploitsAllAsync(
+        string query,
+        IEnumerable<string>? lookupFields = null,
+        int limit = 100,
+        IEnumerable<string>? fields = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(query);
+#else
+        if (string.IsNullOrEmpty(query))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(query));
+#endif
+
+        return SearchAllAsync(
+            BuildExploitQuery(query, lookupFields),
+            limit,
+            fields,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Builds a Lucene exploit query, quoting bare CVE IDs and optionally restricting
+    /// the search to a set of lookup fields — mirrors the Python reference SDK.
+    /// </summary>
+    private static string BuildExploitQuery(string query, IEnumerable<string>? lookupFields)
+    {
         var trimmed = query.Trim();
         if (Regex.IsMatch(trimmed, @"^CVE-\d{4}-\d+$", RegexOptions.IgnoreCase))
         {
             trimmed = $"\"{trimmed}\"";
         }
 
-        string exploitQuery;
         var fieldsList = lookupFields as IList<string> ?? lookupFields?.ToList();
         if (fieldsList != null && fieldsList.Count > 0)
         {
-            var fieldQueries = string.Join(
-                " OR ",
-                fieldsList.Select(f => $"{f}:\"{trimmed}\"")
-            );
-            exploitQuery = $"bulletinFamily:exploit AND ({fieldQueries})";
-        }
-        else
-        {
-            exploitQuery = $"bulletinFamily:exploit AND ({trimmed})";
+            var fieldQueries = string.Join(" OR ", fieldsList.Select(f => $"{f}:\"{trimmed}\""));
+            return $"bulletinFamily:exploit AND ({fieldQueries})";
         }
 
-        return SearchAsync(exploitQuery, limit, skip, fields, cancellationToken);
+        return $"bulletinFamily:exploit AND ({trimmed})";
     }
 
     /// <inheritdoc />
@@ -266,11 +430,7 @@ internal sealed class SearchService : BaseApiService, ISearchService
             }
         }
 
-        return new KbSeedsResult
-        {
-            Superseeds = superseeds,
-            Parentseeds = parentseeds,
-        };
+        return new KbSeedsResult { Superseeds = superseeds, Parentseeds = parentseeds };
     }
 
     /// <inheritdoc />
@@ -288,7 +448,12 @@ internal sealed class SearchService : BaseApiService, ISearchService
 #endif
 
         var query = $"type:msupdate AND kb:({kbId})";
-        return SearchAsync(query, limit: 1000, fields: fields, cancellationToken: cancellationToken);
+        return SearchAsync(
+            query,
+            limit: 1000,
+            fields: fields,
+            cancellationToken: cancellationToken
+        );
     }
 
     /// <inheritdoc />
@@ -348,10 +513,7 @@ internal sealed class SearchService : BaseApiService, ISearchService
         var results = new List<string>();
         foreach (var suggestion in response.Suggestions)
         {
-            if (
-                suggestion.ValueKind == JsonValueKind.Array
-                && suggestion.GetArrayLength() > 0
-            )
+            if (suggestion.ValueKind == JsonValueKind.Array && suggestion.GetArrayLength() > 0)
             {
                 var text = suggestion[0].GetString();
                 if (text is not null)
@@ -405,5 +567,22 @@ internal sealed class SearchService : BaseApiService, ISearchService
         }
 
         return GetV4Async<CpeSearchResponseData>(url, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> SearchCpeMatchAsync(
+        IEnumerable<string> software,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(software);
+#else
+        if (software == null)
+            throw new ArgumentNullException(nameof(software));
+#endif
+
+        var request = new CpeMatchRequest { Software = software };
+        return PostV4Async<CpeMatchRequest, JsonElement>("search/cpe", request, cancellationToken);
     }
 }

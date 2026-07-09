@@ -62,7 +62,7 @@ internal sealed class ArchiveService : BaseApiService, IArchiveService
 #endif
 
         var url = $"archive/collection?type={Uri.EscapeDataString(type)}";
-        return await GetV4Async<List<CollectionEntry>>(url, cancellationToken)
+        return await GetV4GzipJsonAsync<List<CollectionEntry>>(url, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -85,6 +85,112 @@ internal sealed class ArchiveService : BaseApiService, IArchiveService
             throw new ArgumentException("Value cannot be null or empty.", nameof(type));
 #endif
 
+        var afterStr = FormatAfter(after);
+        var url =
+            $"archive/collection-update?type={Uri.EscapeDataString(type)}&after={Uri.EscapeDataString(afterStr)}";
+        return await GetV4GzipJsonAsync<List<CollectionEntry>>(url, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "Building query string URL"
+    )]
+    public Task<ArchiveState> GetCollectionStateAsync(
+        string type,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(type);
+#else
+        if (string.IsNullOrEmpty(type))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(type));
+#endif
+
+        var url = $"archive/collection-state?type={Uri.EscapeDataString(type)}";
+        return GetV4Async<ArchiveState>(url, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "Building query string URL"
+    )]
+    public async Task<IReadOnlyList<CollectionEntry>> GetFamilyAsync(
+        string name,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(name);
+#else
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(name));
+#endif
+
+        var url = $"archive/family?name={Uri.EscapeDataString(name)}";
+        return await GetV4GzipJsonAsync<List<CollectionEntry>>(url, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "Building query string URL"
+    )]
+    public async Task<IReadOnlyList<CollectionEntry>> GetFamilyUpdateAsync(
+        string name,
+        DateTimeOffset after,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(name);
+#else
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(name));
+#endif
+
+        var afterStr = FormatAfter(after);
+        var url =
+            $"archive/family-update?name={Uri.EscapeDataString(name)}&after={Uri.EscapeDataString(afterStr)}";
+        return await GetV4GzipJsonAsync<List<CollectionEntry>>(url, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "Building query string URL"
+    )]
+    public Task<ArchiveState> GetFamilyStateAsync(
+        string name,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(name);
+#else
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(name));
+#endif
+
+        var url = $"archive/family-state?name={Uri.EscapeDataString(name)}";
+        return GetV4Async<ArchiveState>(url, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates an incremental-update timestamp (must be within the last 25 hours and
+    /// not in the future) and formats it as the API's expected UTC string.
+    /// </summary>
+    private static string FormatAfter(DateTimeOffset after)
+    {
         var now = DateTimeOffset.UtcNow;
         if (after > now)
         {
@@ -104,13 +210,9 @@ internal sealed class ArchiveService : BaseApiService, IArchiveService
             );
         }
 
-        var afterStr = after.UtcDateTime.ToString(
+        return after.UtcDateTime.ToString(
             "yyyy-MM-ddTHH:mm:ss",
             System.Globalization.CultureInfo.InvariantCulture
         );
-        var url =
-            $"archive/collection-update?type={Uri.EscapeDataString(type)}&after={Uri.EscapeDataString(afterStr)}";
-        return await GetV4Async<List<CollectionEntry>>(url, cancellationToken)
-            .ConfigureAwait(false);
     }
 }

@@ -278,4 +278,163 @@ internal sealed class AuditService : BaseApiService, IAuditService
             .ConfigureAwait(false);
         return new List<string>(response.SupportedOs.Keys);
     }
+
+    /// <inheritdoc />
+    public Task<JsonElement> AuditCveAsync(
+        string cve,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(cve);
+#else
+        if (string.IsNullOrEmpty(cve))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(cve));
+#endif
+
+        var request = new CveAuditRequest { Cve = cve };
+        return PostV4Async<CveAuditRequest, JsonElement>("audit/cve", request, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> AuditCvesAsync(
+        IEnumerable<string> cves,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(cves);
+#else
+        if (cves == null)
+            throw new ArgumentNullException(nameof(cves));
+#endif
+
+        var request = new CvesAuditRequest { Cve = cves };
+        return PostV4Async<CvesAuditRequest, JsonElement>("audit/cves", request, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> AuditLibraryAsync(
+        IEnumerable<string> packages,
+        bool includeUnofficial = false,
+        bool includeCandidates = false,
+        bool includeAnyVersion = false,
+        bool cvelistMetrics = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(packages);
+#else
+        if (packages == null)
+            throw new ArgumentNullException(nameof(packages));
+#endif
+
+        var request = new LibraryAuditRequest
+        {
+            Packages = packages,
+            IncludeUnofficial = includeUnofficial,
+            IncludeCandidates = includeCandidates,
+            IncludeAnyVersion = includeAnyVersion,
+            CvelistMetrics = cvelistMetrics,
+        };
+
+        return PostV4Async<LibraryAuditRequest, JsonElement>(
+            "audit/library",
+            request,
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> AuditSmartAsync(
+        IEnumerable<string> software,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(software);
+#else
+        if (software == null)
+            throw new ArgumentNullException(nameof(software));
+#endif
+
+        var request = new SmartAuditRequest { Software = software };
+        return PostV4Async<SmartAuditRequest, JsonElement>(
+            "audit/smart",
+            request,
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public Task<JsonElement> AuditPackageMetadataAsync(
+        string registry,
+        string name,
+        string version,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(registry);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+#else
+        if (string.IsNullOrEmpty(registry))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(registry));
+        if (string.IsNullOrEmpty(name))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(name));
+        if (string.IsNullOrEmpty(version))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(version));
+#endif
+
+        var request = new PackageMetadataRequest
+        {
+            Registry = registry,
+            Name = name,
+            Version = version,
+        };
+
+        return PostV4Async<PackageMetadataRequest, JsonElement>(
+            "audit/metadata",
+            request,
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage(
+        "Design",
+        "CA1054:URI-like parameters should not be strings",
+        Justification = "Building query string URL"
+    )]
+    public Task<JsonElement> AuditPackageAsync(
+        string contentType,
+        string manifestContent,
+        bool includeAnyVersion = true,
+        bool includeCandidates = false,
+        bool includeUnofficial = false,
+        bool includeTransitives = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(contentType);
+        ArgumentNullException.ThrowIfNull(manifestContent);
+#else
+        if (string.IsNullOrEmpty(contentType))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(contentType));
+        if (manifestContent == null)
+            throw new ArgumentNullException(nameof(manifestContent));
+#endif
+
+        var url =
+            $"audit/package/{Uri.EscapeDataString(contentType)}"
+            + $"?includeAnyVersion={(includeAnyVersion ? "true" : "false")}"
+            + $"&includeCandidates={(includeCandidates ? "true" : "false")}"
+            + $"&includeUnofficial={(includeUnofficial ? "true" : "false")}"
+            + $"&includeTransitives={(includeTransitives ? "true" : "false")}";
+
+        return PostV4RawAsync<JsonElement>(url, manifestContent, "text/plain", cancellationToken);
+    }
 }

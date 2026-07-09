@@ -40,4 +40,9 @@ internal sealed class MiscService : BaseApiService, IMiscService
         return response.Suggest;
     }
 
+    /// <inheritdoc />
+    public Task<ApiKeyInfo> GetApiKeyInfoAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<ApiKeyInfo>("apiKey/info", cancellationToken);
+    }
 }
