@@ -249,6 +249,8 @@ internal sealed class AuditService : BaseApiService, IAuditService
             throw new ArgumentNullException(nameof(software));
 #endif
 
+        // LEGACY EXCEPTION: the winaudit endpoint reads apiKey from the request body and
+        // fails without it, so the key is sent here in addition to the X-Api-Key header.
         var request = new WindowsWinAuditRequest
         {
             ApiKey = ApiKey,

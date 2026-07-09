@@ -18,17 +18,16 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
         : base(httpClient, options) { }
 
     /// <inheritdoc />
-    [SuppressMessage(
-        "Design",
-        "CA1054:URI-like parameters should not be strings",
-        Justification = "Building query string URL"
-    )]
     public async Task<IReadOnlyList<JsonElement>> ListAsync(
         CancellationToken cancellationToken = default
     )
     {
-        var url = $"subscriptions/listWebhookSubscriptions/?apiKey={Uri.EscapeDataString(ApiKey)}";
-        var response = await GetAsync<WebhookListResponseData>(url, cancellationToken)
+        // Authenticated via the X-Api-Key header on the configured HttpClient — the key
+        // is deliberately not placed in the query string.
+        var response = await GetAsync<WebhookListResponseData>(
+                "subscriptions/listWebhookSubscriptions/",
+                cancellationToken
+            )
             .ConfigureAwait(false);
         return response.Subscriptions;
     }
@@ -43,6 +42,9 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
             throw new ArgumentException("Value cannot be null or empty.", nameof(query));
 #endif
 
+        // LEGACY EXCEPTION: addWebhookSubscription rejects header-only auth with
+        // errorCode 103 ("Missing parameters: ['apiKey']"), so the key must be sent in
+        // the body here. The key is also present in the X-Api-Key header.
         var request = new AddWebhookRequest { ApiKey = ApiKey, Query = query };
         await PostAsync<AddWebhookRequest, object>(
                 "subscriptions/addWebhookSubscription/",
@@ -66,9 +68,9 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
             throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
+        // Key travels in the X-Api-Key header; not serialized into the request body.
         var request = new EditWebhookRequest
         {
-            ApiKey = ApiKey,
             SubscriptionId = subscriptionId,
             Active = active ? "true" : "false",
         };
@@ -93,7 +95,8 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
             throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
-        var request = new RemoveWebhookRequest { ApiKey = ApiKey, SubscriptionId = subscriptionId };
+        // Key travels in the X-Api-Key header; not serialized into the request body.
+        var request = new RemoveWebhookRequest { SubscriptionId = subscriptionId };
         await PostAsync<RemoveWebhookRequest, object>(
                 "subscriptions/removeWebhookSubscription/",
                 request,
@@ -121,6 +124,9 @@ internal sealed class WebhookService : BaseApiService, IWebhookService
             throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
+        // LEGACY EXCEPTION: the webhook read endpoint rejects header-only auth with
+        // errorCode 103 ("Missing parameters: ['apiKey']") and requires apiKey as a query
+        // parameter. The key is also present in the X-Api-Key header.
         var url =
             $"subscriptions/webhook?apiKey={Uri.EscapeDataString(ApiKey)}&subscriptionid={Uri.EscapeDataString(subscriptionId)}&newest_only={(newestOnly ? "true" : "false")}";
         return await GetAsync<JsonElement>(url, cancellationToken).ConfigureAwait(false);

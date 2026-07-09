@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using VulnersDotNet.Exceptions;
 using VulnersDotNet.Models;
 
@@ -43,6 +44,54 @@ public abstract class BaseApiService
 #endif
         _v4BaseUri = new Uri(options.V4BaseUrl);
         ApiKey = options.ApiKey;
+    }
+
+    private const int MaxErrorBodyLength = 2048;
+
+    private static readonly Regex CredentialPattern = new Regex(
+        "(?i)(\"?(?:api[_-]?key|x-api-key|token|secret)\"?\\s*[:=]\\s*\"?)([^\"&\\s,}]+)",
+        RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Redacts credentials from an HTTP error body and truncates it before it is placed
+    /// into an exception message, so API keys or sensitive request context echoed by the
+    /// server (or a proxy) do not leak into application logs.
+    /// </summary>
+    [SuppressMessage(
+        "Globalization",
+        "CA1307:Specify StringComparison for clarity",
+        Justification = "Ordinal replacement of an exact secret value; the StringComparison overload is unavailable on netstandard2.0."
+    )]
+    [SuppressMessage(
+        "Performance",
+        "CA1845:Use span-based 'string.Concat'",
+        Justification = "Cold error path; the span-based Concat overload is unavailable on netstandard2.0."
+    )]
+    private string SanitizeError(string? content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return string.Empty;
+        }
+
+        var sanitized = content!;
+
+        // Redact the exact configured key wherever it appears.
+        if (!string.IsNullOrEmpty(ApiKey))
+        {
+            sanitized = sanitized.Replace(ApiKey, "[REDACTED]");
+        }
+
+        // Redact common credential patterns (apiKey=..., "apiKey":"...", token, secret).
+        sanitized = CredentialPattern.Replace(sanitized, "$1[REDACTED]");
+
+        if (sanitized.Length > MaxErrorBodyLength)
+        {
+            sanitized = sanitized.Substring(0, MaxErrorBodyLength) + "… [truncated]";
+        }
+
+        return sanitized;
     }
 
     /// <summary>
@@ -248,7 +297,7 @@ public abstract class BaseApiService
             var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
             throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
                 response.StatusCode
             );
         }
@@ -348,7 +397,7 @@ public abstract class BaseApiService
             var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
             throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
                 response.StatusCode
             );
         }
@@ -377,7 +426,7 @@ public abstract class BaseApiService
         return result;
     }
 
-    private static async Task<TResponseData> ProcessV4ResponseAsync<TResponseData>(
+    private async Task<TResponseData> ProcessV4ResponseAsync<TResponseData>(
         HttpResponseMessage response,
         CancellationToken cancellationToken
     )
@@ -392,7 +441,7 @@ public abstract class BaseApiService
             var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
             throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
                 response.StatusCode
             );
         }
@@ -413,7 +462,7 @@ public abstract class BaseApiService
         return apiResponse.Result;
     }
 
-    private static async Task<TResponseData> ProcessResponseAsync<TResponseData>(
+    private async Task<TResponseData> ProcessResponseAsync<TResponseData>(
         HttpResponseMessage response,
         CancellationToken cancellationToken
     )
@@ -428,7 +477,7 @@ public abstract class BaseApiService
             var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
             throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
                 response.StatusCode
             );
         }
@@ -449,7 +498,9 @@ public abstract class BaseApiService
         if (!apiResponse.IsSuccess)
         {
             throw new VulnersException(
-                apiResponse.Error ?? "The API returned an error without a specific error message."
+                apiResponse.Error is null
+                    ? "The API returned an error without a specific error message."
+                    : SanitizeError(apiResponse.Error)
             );
         }
 

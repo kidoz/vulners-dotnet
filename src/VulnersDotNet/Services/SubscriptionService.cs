@@ -21,8 +21,12 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
         CancellationToken cancellationToken = default
     )
     {
-        var url = $"subscriptions/listEmailSubscriptions/?apiKey={Uri.EscapeDataString(ApiKey)}";
-        var response = await GetAsync<SubscriptionListResponseData>(url, cancellationToken)
+        // Authenticated via the X-Api-Key header on the configured HttpClient — the key
+        // is deliberately not placed in the query string.
+        var response = await GetAsync<SubscriptionListResponseData>(
+                "subscriptions/listEmailSubscriptions/",
+                cancellationToken
+            )
             .ConfigureAwait(false);
         return response.Subscriptions;
     }
@@ -47,9 +51,9 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
             throw new ArgumentException("Value cannot be null or empty.", nameof(email));
 #endif
 
+        // Key travels in the X-Api-Key header; not serialized into the request body.
         var request = new AddEmailSubscriptionRequest
         {
-            ApiKey = ApiKey,
             Query = query,
             Email = email,
             Format = format,
@@ -81,9 +85,9 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
             throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
+        // Key travels in the X-Api-Key header; not serialized into the request body.
         var request = new EditEmailSubscriptionRequest
         {
-            ApiKey = ApiKey,
             SubscriptionId = subscriptionId,
             Format = format,
             Crontab = crontab,
@@ -111,11 +115,8 @@ internal sealed class SubscriptionService : BaseApiService, ISubscriptionService
             throw new ArgumentException("Value cannot be null or empty.", nameof(subscriptionId));
 #endif
 
-        var request = new RemoveEmailSubscriptionRequest
-        {
-            ApiKey = ApiKey,
-            SubscriptionId = subscriptionId,
-        };
+        // Key travels in the X-Api-Key header; not serialized into the request body.
+        var request = new RemoveEmailSubscriptionRequest { SubscriptionId = subscriptionId };
 
         await PostAsync<RemoveEmailSubscriptionRequest, object>(
                 "subscriptions/removeEmailSubscription/",

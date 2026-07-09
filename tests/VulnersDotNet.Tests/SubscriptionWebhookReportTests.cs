@@ -26,24 +26,18 @@ public class SubscriptionWebhookReportTests : IntegrationTestBase
         {
             await Client.Webhook.AddAsync(query, ct);
 
-            var list = await Client.Webhook.ListAsync(ct);
-            Assert.NotEmpty(list);
-
-            // Find the subscription we just created by its query text.
-            foreach (var sub in list)
+            // The webhook list is eventually consistent, so poll for the item we created.
+            for (var attempt = 0; attempt < 10 && id is null; attempt++)
             {
-                if (
-                    sub.TryGetProperty("query", out var q)
-                    && q.GetString() == query
-                    && sub.TryGetProperty("id", out var idProp)
-                )
+                var list = await Client.Webhook.ListAsync(ct);
+                id = FindWebhookId(list, query);
+                if (id is null)
                 {
-                    id = idProp.GetString();
-                    break;
+                    await Task.Delay(TimeSpan.FromSeconds(1), ct);
                 }
             }
 
-            Assert.False(string.IsNullOrEmpty(id), "Created webhook should be present in the list");
+            Assert.False(string.IsNullOrEmpty(id), "Created webhook should appear in the list");
 
             // Read pending data (may be empty) — verifies the read endpoint wiring.
             var read = await Client.Webhook.ReadAsync(id!, newestOnly: true, ct);
@@ -54,9 +48,40 @@ public class SubscriptionWebhookReportTests : IntegrationTestBase
         }
         finally
         {
-            if (!string.IsNullOrEmpty(id))
+            // Best-effort cleanup of any webhook matching our query (handles lag/leftovers).
+            try
             {
-                await Client.Webhook.DeleteAsync(id!, ct);
+                var list = await Client.Webhook.ListAsync(ct);
+                foreach (var wid in FindAllWebhookIds(list, query))
+                {
+                    await Client.Webhook.DeleteAsync(wid, ct);
+                }
+            }
+            catch (Exceptions.VulnersException)
+            {
+                // Ignore cleanup failures.
+            }
+        }
+    }
+
+    private static string? FindWebhookId(IReadOnlyList<JsonElement> list, string query) =>
+        FindAllWebhookIds(list, query).FirstOrDefault();
+
+    private static IEnumerable<string> FindAllWebhookIds(
+        IReadOnlyList<JsonElement> list,
+        string query
+    )
+    {
+        foreach (var sub in list)
+        {
+            if (
+                sub.TryGetProperty("query", out var q)
+                && q.GetString() == query
+                && sub.TryGetProperty("id", out var idProp)
+                && idProp.GetString() is { Length: > 0 } id
+            )
+            {
+                yield return id;
             }
         }
     }
