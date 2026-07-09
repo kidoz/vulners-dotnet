@@ -105,9 +105,23 @@ public class VulnersOptions
             url += "/";
 #endif
 
-        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed))
         {
             throw new ArgumentException($"'{url}' is not a valid absolute URL.", nameof(url));
+        }
+
+        // The API key is attached to every outbound request, so require HTTPS to keep it
+        // in transit-encrypted channels. Plain HTTP is allowed only for loopback hosts
+        // (localhost / 127.0.0.1 / ::1) to support local testing and mock servers.
+        if (
+            !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+            && !parsed.IsLoopback
+        )
+        {
+            throw new ArgumentException(
+                $"'{url}' must use HTTPS. Plain HTTP is only permitted for loopback hosts.",
+                nameof(url)
+            );
         }
 
         return url;

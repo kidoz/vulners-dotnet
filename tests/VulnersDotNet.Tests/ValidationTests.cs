@@ -262,6 +262,39 @@ public class ValidationTests
     }
 
     [Fact]
+    public void BaseUrl_PlainHttpNonLoopback_Throws()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new VulnersOptions { BaseUrl = "http://vulners.com/api/" }
+        );
+        Assert.Contains("HTTPS", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BaseUrl_HttpsAllowed()
+    {
+        var options = new VulnersOptions { BaseUrl = "https://example.com/api/" };
+        Assert.Equal("https://example.com/api/", options.BaseUrl);
+    }
+
+    [Theory]
+    [InlineData("http://localhost:8080/api/")]
+    [InlineData("http://127.0.0.1/api/")]
+    public void BaseUrl_PlainHttpLoopback_Allowed(string url)
+    {
+        var options = new VulnersOptions { BaseUrl = url };
+        Assert.StartsWith("http://", options.BaseUrl);
+    }
+
+    [Fact]
+    public void V4BaseUrl_PlainHttpNonLoopback_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new VulnersOptions { V4BaseUrl = "http://proxy.example.com/api/v4/" }
+        );
+    }
+
+    [Fact]
     public void Validate_CustomProxyBase_Succeeds()
     {
         var services = new ServiceCollection();
