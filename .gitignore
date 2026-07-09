@@ -1,7 +1,66 @@
-bin/
-obj/
+# Build outputs
+[Bb]in/
+[Oo]bj/
+/artifacts/
 /packages/
+
+# .NET test and coverage outputs
+/TestResults/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage.xml
+lcov.info
+
+# NuGet packaging
+*.nupkg
+*.snupkg
+*.symbols.nupkg
+
+# IDE and editor state
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.DotSettings.user
+*.sln.DotSettings.user
 riderModule.iml
 /_ReSharper.Caches/
+.ionide/
+
+# Local secrets and environment overrides
 .env
-.idea/
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Python caches and virtual environments used by repo tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.venv/
+venv/
+env/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Crash dumps
+core
+core.*
+*.dmp
+*.dump
