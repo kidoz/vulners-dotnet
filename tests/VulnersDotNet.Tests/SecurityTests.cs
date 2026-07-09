@@ -52,6 +52,8 @@ public class SecurityTests
 
         public Task<T> Get<T>(string url, CancellationToken ct) => GetAsync<T>(url, ct);
 
+        public Task<Stream> GetStream(string url, CancellationToken ct) => GetStreamAsync(url, ct);
+
         public Task<object> Post<TReq>(string url, TReq req, CancellationToken ct) =>
             PostAsync<TReq, object>(url, req, ct);
     }
@@ -77,6 +79,25 @@ public class SecurityTests
 
         var ex = await Assert.ThrowsAsync<VulnersException>(() =>
             svc.Get<JsonElement>("boom", TestContext.Current.CancellationToken)
+        );
+
+        Assert.DoesNotContain(SecretKey, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetStream_ErrorBody_RedactsApiKey()
+    {
+        var (svc, _) = Make(
+            HttpStatusCode.Forbidden,
+            $"{{\"error\":\"denied for apiKey={SecretKey}\"}}"
+        );
+
+        var ex = await Assert.ThrowsAsync<VulnersException>(() =>
+            svc.GetStream(
+                "archive/distributive?os=x&version=1",
+                TestContext.Current.CancellationToken
+            )
         );
 
         Assert.DoesNotContain(SecretKey, ex.Message, StringComparison.Ordinal);

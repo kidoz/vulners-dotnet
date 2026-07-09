@@ -174,7 +174,7 @@ public abstract class BaseApiService
                 var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
                 throw new VulnersException(
-                    $"HTTP error {(int)response.StatusCode}: {errorContent}",
+                    $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
                     response.StatusCode
                 );
             }
