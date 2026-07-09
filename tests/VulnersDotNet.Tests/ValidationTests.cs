@@ -131,6 +131,117 @@ public class ValidationTests
         Assert.Equal("os", ex.ParamName);
     }
 
+    // ==================== Collection bounds ====================
+
+    [Fact]
+    public async Task SearchAsync_NegativeSkip_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _client.Search.SearchAsync("test", skip: -1)
+        );
+        Assert.Equal("skip", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SkipTooHigh_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _client.Search.SearchAsync("test", skip: 10001)
+        );
+        Assert.Equal("skip", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchCpeMatchAsync_Empty_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Search.SearchCpeMatchAsync(Array.Empty<string>())
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchCpeMatchAsync_TooMany_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Search.SearchCpeMatchAsync(Enumerable.Repeat("nginx", 101))
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchCpeMatchAsync_EmptyItem_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Search.SearchCpeMatchAsync(new[] { "nginx", "" })
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditCvesAsync_Empty_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditCvesAsync(Array.Empty<string>())
+        );
+        Assert.Equal("cves", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditCvesAsync_TooMany_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditCvesAsync(Enumerable.Repeat("CVE-2021-44228", 501))
+        );
+        Assert.Equal("cves", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditLibraryAsync_Empty_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditLibraryAsync(Array.Empty<string>())
+        );
+        Assert.Equal("packages", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task LinuxAuditAsync_EmptyPackages_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.LinuxAuditAsync("debian", "12", Array.Empty<string>())
+        );
+        Assert.Equal("packages", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditSoftwareAsync_Empty_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSoftwareAsync(Array.Empty<CpeSoftwareInput>())
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditHostAsync_TooMany_Throws()
+    {
+        var many = Enumerable.Repeat<CpeSoftwareInput>("cpe:2.3:a:x:y:1:*:*:*:*:*:*:*", 201);
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditHostAsync(many)
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditPackagesAsync_EmptyPackages_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditPackagesAsync("debian", "12", Array.Empty<string>())
+        );
+        Assert.Equal("packages", ex.ParamName);
+    }
+
     // ==================== Archive ====================
 
     [Fact]

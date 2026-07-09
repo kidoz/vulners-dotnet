@@ -95,6 +95,71 @@ public abstract class BaseApiService
     }
 
     /// <summary>
+    /// Materializes a collection argument and validates its element count falls within the
+    /// inclusive range documented by the endpoint, throwing before any network call.
+    /// </summary>
+    private protected static IReadOnlyList<T> ValidateCount<T>(
+        IEnumerable<T> items,
+        string paramName,
+        int min,
+        int max
+    )
+    {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(items, paramName);
+#else
+        if (items is null)
+            throw new ArgumentNullException(paramName);
+#endif
+
+        var list = items as IReadOnlyList<T> ?? items.ToList();
+        if (list.Count < min || list.Count > max)
+        {
+            throw new ArgumentException(
+                $"Expected between {min} and {max} items, but got {list.Count}.",
+                paramName
+            );
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Validates a collection of string arguments for count, and that no item is null,
+    /// empty, or longer than <paramref name="maxItemLength"/> (when non-zero).
+    /// </summary>
+    private protected static IReadOnlyList<string> ValidateStringItems(
+        IEnumerable<string> items,
+        string paramName,
+        int min,
+        int max,
+        int maxItemLength = 0
+    )
+    {
+        var list = ValidateCount(items, paramName, min, max);
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (string.IsNullOrEmpty(list[i]))
+            {
+                throw new ArgumentException(
+                    $"Item at index {i} must not be null or empty.",
+                    paramName
+                );
+            }
+
+            if (maxItemLength > 0 && list[i].Length > maxItemLength)
+            {
+                throw new ArgumentException(
+                    $"Item at index {i} exceeds the maximum length of {maxItemLength}.",
+                    paramName
+                );
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
     /// Sends a POST request and deserializes the response.
     /// </summary>
     [SuppressMessage(

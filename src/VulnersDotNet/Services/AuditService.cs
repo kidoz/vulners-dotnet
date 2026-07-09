@@ -29,21 +29,19 @@ internal sealed class AuditService : BaseApiService, IAuditService
 #if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(os);
         ArgumentException.ThrowIfNullOrEmpty(version);
-        ArgumentNullException.ThrowIfNull(packages);
 #else
         if (string.IsNullOrEmpty(os))
             throw new ArgumentException("Value cannot be null or empty.", nameof(os));
         if (string.IsNullOrEmpty(version))
             throw new ArgumentException("Value cannot be null or empty.", nameof(version));
-        if (packages == null)
-            throw new ArgumentNullException(nameof(packages));
 #endif
+        var packageList = ValidateCount(packages, nameof(packages), 1, int.MaxValue);
 
         var request = new AuditRequest
         {
             OS = os,
             Version = version,
-            Packages = packages,
+            Packages = packageList,
             IncludeCandidates = includeCandidates,
         };
 
@@ -64,16 +62,10 @@ internal sealed class AuditService : BaseApiService, IAuditService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(software);
-#else
-        if (software == null)
-            throw new ArgumentNullException(nameof(software));
-#endif
-
+        var items = ValidateCount(software, nameof(software), 1, 500);
         var request = new AuditSoftwareRequest
         {
-            Software = software.Select(s => s.Value),
+            Software = items.Select(s => s.Value),
             Match = match,
             Fields = fields,
             Config = config,
@@ -101,16 +93,10 @@ internal sealed class AuditService : BaseApiService, IAuditService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(software);
-#else
-        if (software == null)
-            throw new ArgumentNullException(nameof(software));
-#endif
-
+        var items = ValidateCount(software, nameof(software), 1, 200);
         var request = new AuditHostRequest
         {
-            Software = software.Select(s => s.Value),
+            Software = items.Select(s => s.Value),
             OperatingSystem = operatingSystem?.Value,
             Hardware = hardware?.Value,
             Application = application?.Value,
@@ -144,21 +130,19 @@ internal sealed class AuditService : BaseApiService, IAuditService
 #if NET8_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(osName);
         ArgumentException.ThrowIfNullOrEmpty(osVersion);
-        ArgumentNullException.ThrowIfNull(packages);
 #else
         if (string.IsNullOrEmpty(osName))
             throw new ArgumentException("Value cannot be null or empty.", nameof(osName));
         if (string.IsNullOrEmpty(osVersion))
             throw new ArgumentException("Value cannot be null or empty.", nameof(osVersion));
-        if (packages == null)
-            throw new ArgumentNullException(nameof(packages));
 #endif
+        var packageList = ValidateStringItems(packages, nameof(packages), 1, 2500);
 
         var request = new LinuxAuditRequest
         {
             OsName = osName,
             OsVersion = osVersion,
-            Packages = packages,
+            Packages = packageList,
             OsArch = osArch,
             IncludeUnofficial = includeUnofficial,
             IncludeCandidates = includeCandidates,
@@ -304,14 +288,8 @@ internal sealed class AuditService : BaseApiService, IAuditService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(cves);
-#else
-        if (cves == null)
-            throw new ArgumentNullException(nameof(cves));
-#endif
-
-        var request = new CvesAuditRequest { Cve = cves };
+        var items = ValidateStringItems(cves, nameof(cves), 1, 500);
+        var request = new CvesAuditRequest { Cve = items };
         return PostV4Async<CvesAuditRequest, JsonElement>("audit/cves", request, cancellationToken);
     }
 
@@ -325,16 +303,10 @@ internal sealed class AuditService : BaseApiService, IAuditService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(packages);
-#else
-        if (packages == null)
-            throw new ArgumentNullException(nameof(packages));
-#endif
-
+        var packageList = ValidateStringItems(packages, nameof(packages), 1, 2500);
         var request = new LibraryAuditRequest
         {
-            Packages = packages,
+            Packages = packageList,
             IncludeUnofficial = includeUnofficial,
             IncludeCandidates = includeCandidates,
             IncludeAnyVersion = includeAnyVersion,
@@ -354,14 +326,8 @@ internal sealed class AuditService : BaseApiService, IAuditService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(software);
-#else
-        if (software == null)
-            throw new ArgumentNullException(nameof(software));
-#endif
-
-        var request = new SmartAuditRequest { Software = software };
+        var items = ValidateStringItems(software, nameof(software), 1, 500, maxItemLength: 512);
+        var request = new SmartAuditRequest { Software = items };
         return PostV4Async<SmartAuditRequest, JsonElement>(
             "audit/smart",
             request,

@@ -43,6 +43,15 @@ internal sealed class SearchService : BaseApiService, ISearchService
             );
         }
 
+        if (skip < 0 || skip > 10000)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(skip),
+                skip,
+                "Skip must be between 0 and 10000."
+            );
+        }
+
         var request = new SearchRequest
         {
             Query = query,
@@ -575,14 +584,8 @@ internal sealed class SearchService : BaseApiService, ISearchService
         CancellationToken cancellationToken = default
     )
     {
-#if NET8_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(software);
-#else
-        if (software == null)
-            throw new ArgumentNullException(nameof(software));
-#endif
-
-        var request = new CpeMatchRequest { Software = software };
+        var items = ValidateStringItems(software, nameof(software), 1, 100, maxItemLength: 512);
+        var request = new CpeMatchRequest { Software = items };
         return PostV4Async<CpeMatchRequest, JsonElement>("search/cpe", request, cancellationToken);
     }
 }
