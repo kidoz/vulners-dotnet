@@ -60,7 +60,7 @@ Console.WriteLine($"{bulletin.Id}: {bulletin.Title}");
 var suggestions = await client.Search.AutocompleteAsync("heartbleed");
 
 // CPE search
-var cpes = await client.Search.SearchCpeAsync("google", "chrome", size: 5);
+var cpes = await client.Search.SearchCpeAsync("chrome", vendor: "google", size: 5);
 Console.WriteLine($"Best match: {cpes.BestMatch}");
 ```
 
