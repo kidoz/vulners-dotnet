@@ -341,7 +341,7 @@ public record SearchRequest
 public record IdSearchRequest
 {
     /// <summary>
-    /// List of bulletin IDs to retrieve (max 3).
+    /// List of bulletin IDs to retrieve (one or more).
     /// </summary>
     [JsonPropertyName("id")]
     public IEnumerable<string> Ids { get; init; } = Array.Empty<string>();
@@ -880,48 +880,6 @@ public record WindowsWinAuditRequest
     public string? Platform { get; init; }
 }
 
-/// <summary>
-/// Missing patch/KB and its vulnerability details from Windows audit.
-/// </summary>
-public record WindowsAuditBulletin
-{
-    /// <summary>
-    /// Affected package or OS line.
-    /// </summary>
-    [JsonPropertyName("package")]
-    public string Package { get; init; } = string.Empty;
-
-    /// <summary>
-    /// Bulletin publish date.
-    /// </summary>
-    [JsonPropertyName("published")]
-    public string? Published { get; init; }
-
-    /// <summary>
-    /// Vulners bulletin identifier.
-    /// </summary>
-    [JsonPropertyName("bulletinID")]
-    public string BulletinId { get; init; } = string.Empty;
-
-    /// <summary>
-    /// CVE IDs linked to the bulletin.
-    /// </summary>
-    [JsonPropertyName("cvelist")]
-    public IReadOnlyList<string> CveList { get; init; } = Array.Empty<string>();
-
-    /// <summary>
-    /// CVSS score object.
-    /// </summary>
-    [JsonPropertyName("cvss")]
-    public CvssScore? Cvss { get; init; }
-
-    /// <summary>
-    /// Recommended patch / KB to apply.
-    /// </summary>
-    [JsonPropertyName("fix")]
-    public string? Fix { get; init; }
-}
-
 // ===================== Supported OS =====================
 
 /// <summary>
@@ -969,19 +927,6 @@ public record CollectionEntry
 }
 
 // ===================== Subscriptions =====================
-
-/// <summary>
-/// Request payload for listing email subscriptions.
-/// </summary>
-public record ListEmailSubscriptionRequest
-{
-    /// <summary>
-    /// API key for authentication (required in the request body).
-    /// </summary>
-    [JsonPropertyName("apiKey")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ApiKey { get; init; }
-}
 
 /// <summary>
 /// Response wrapper for the list email subscriptions endpoint.
