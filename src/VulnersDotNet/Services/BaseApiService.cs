@@ -95,6 +95,33 @@ public abstract class BaseApiService
     }
 
     /// <summary>
+    /// Throws a <see cref="VulnersException"/> with a redacted, truncated copy of the
+    /// response body when <paramref name="response"/> does not indicate success.
+    /// </summary>
+    private async Task ThrowOnErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+#if NET8_0_OR_GREATER
+        var errorContent = await response
+            .Content.ReadAsStringAsync(cancellationToken)
+            .ConfigureAwait(false);
+#else
+        var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+#endif
+        throw new VulnersException(
+            $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
+            response.StatusCode
+        );
+    }
+
+    /// <summary>
     /// Materializes a collection argument and validates its element count falls within the
     /// inclusive range documented by the endpoint, throwing before any network call.
     /// </summary>
@@ -229,20 +256,7 @@ public abstract class BaseApiService
 
         try
         {
-            if (!response.IsSuccessStatusCode)
-            {
-#if NET8_0_OR_GREATER
-                var errorContent = await response
-                    .Content.ReadAsStringAsync(cancellationToken)
-                    .ConfigureAwait(false);
-#else
-                var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#endif
-                throw new VulnersException(
-                    $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
-                    response.StatusCode
-                );
-            }
+            await ThrowOnErrorAsync(response, cancellationToken).ConfigureAwait(false);
 
 #if NET8_0_OR_GREATER
             var stream = await response
@@ -352,20 +366,7 @@ public abstract class BaseApiService
             .DeleteAsync(absoluteUrl, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-#if NET8_0_OR_GREATER
-            var errorContent = await response
-                .Content.ReadAsStringAsync(cancellationToken)
-                .ConfigureAwait(false);
-#else
-            var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#endif
-            throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
-                response.StatusCode
-            );
-        }
+        await ThrowOnErrorAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -452,20 +453,7 @@ public abstract class BaseApiService
             .GetAsync(absoluteUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
-#if NET8_0_OR_GREATER
-            var errorContent = await response
-                .Content.ReadAsStringAsync(cancellationToken)
-                .ConfigureAwait(false);
-#else
-            var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#endif
-            throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
-                response.StatusCode
-            );
-        }
+        await ThrowOnErrorAsync(response, cancellationToken).ConfigureAwait(false);
 
 #if NET8_0_OR_GREATER
         var networkStream = await response
@@ -496,20 +484,7 @@ public abstract class BaseApiService
         CancellationToken cancellationToken
     )
     {
-        if (!response.IsSuccessStatusCode)
-        {
-#if NET8_0_OR_GREATER
-            var errorContent = await response
-                .Content.ReadAsStringAsync(cancellationToken)
-                .ConfigureAwait(false);
-#else
-            var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#endif
-            throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
-                response.StatusCode
-            );
-        }
+        await ThrowOnErrorAsync(response, cancellationToken).ConfigureAwait(false);
 
         var apiResponse = await response
             .Content.ReadFromJsonAsync<VulnersV4Response<TResponseData>>(
@@ -532,20 +507,7 @@ public abstract class BaseApiService
         CancellationToken cancellationToken
     )
     {
-        if (!response.IsSuccessStatusCode)
-        {
-#if NET8_0_OR_GREATER
-            var errorContent = await response
-                .Content.ReadAsStringAsync(cancellationToken)
-                .ConfigureAwait(false);
-#else
-            var errorContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#endif
-            throw new VulnersException(
-                $"HTTP error {(int)response.StatusCode}: {SanitizeError(errorContent)}",
-                response.StatusCode
-            );
-        }
+        await ThrowOnErrorAsync(response, cancellationToken).ConfigureAwait(false);
 
         var apiResponse = await response
             .Content.ReadFromJsonAsync<VulnersResponse<TResponseData>>(
