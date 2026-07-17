@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-17
+
+### Added
+
+- **Audit** — `AuditSmartAsync` now returns strongly-typed `SmartAuditResult` records (resolved
+  CPEs, match reasons and criteria, and AI score) instead of a raw `JsonElement`, and gains an
+  overload that selects the CPE catalog (`official` for NVD CPEs only, or `extended` to include
+  Vulners custom CPEs).
+
+### Changed
+
+- Consolidated HTTP error handling in `BaseApiService` into a shared helper so every service
+  surfaces the same redacted, truncated error messages.
+
+### Removed
+
+- Dropped unused request and response models from the public surface.
+
+### Fixed
+
+- Corrected the CPE search argument order in the README example.
+
 ## [1.0.0] - 2026-07-10
 
 Initial stable release — a fully-featured .NET SDK for the Vulners vulnerability-intelligence
@@ -38,5 +60,6 @@ dependency-injection support.
 - HTTP error bodies are redacted and truncated before being surfaced in exceptions.
 - Public methods validate documented input bounds before making a network call.
 
-[Unreleased]: https://github.com/kidoz/vulners-dotnet/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kidoz/vulners-dotnet/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kidoz/vulners-dotnet/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kidoz/vulners-dotnet/releases/tag/v1.0.0
