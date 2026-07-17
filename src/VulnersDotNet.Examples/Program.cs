@@ -104,8 +104,15 @@ Console.WriteLine($"  cve result kind: {cveAudit.ValueKind}");
 
 // --- V4 smart audit (resolve free-form software) ---
 Console.WriteLine("\n=== V4 Smart Audit ===");
-var smart = await client.Audit.AuditSmartAsync(new[] { "Apache Log4j 2.14.1" });
-Console.WriteLine($"  resolved items: {smart.GetArrayLength()}");
+var smartResults = await client.Audit.AuditSmartAsync(
+    new[] { "Apache Log4j 2.14.1" },
+    catalog: "official"
+);
+foreach (var item in smartResults)
+{
+    Console.WriteLine($"  {item.Input} -> {item.Cpe} ({item.Confidence:P0} confidence)");
+    Console.WriteLine($"  Vulnerabilities: {item.Vulnerabilities.Count}");
+}
 
 // --- V4 manifest audit ---
 Console.WriteLine("\n=== V4 Package Manifest Audit ===");

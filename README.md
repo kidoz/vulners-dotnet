@@ -8,7 +8,7 @@
 ## Features
 
 - **Search** — Lucene full-text search (with auto-pagination), exploit search, bulletin lookup by ID, references, history, KB seeds/updates, query autocomplete, CPE search, web-path vulnerabilities
-- **Audit** — Linux package audit (RPM/DEB/APK), Windows KB and software audit, CPE-based software and host audit (V4), CVE audit, library/SBOM/manifest/smart audit, package metadata (V4)
+- **Audit** — Linux package audit (RPM/DEB/APK), Windows KB and software audit, CPE-based software and host audit (V4), CVE audit, library/SBOM/manifest audit, Smart Audit (preview), package metadata (V4)
 - **Archive** — OS CVE archive download (ZIP), collection and family download, incremental updates, and archive state
 - **Subscriptions** — V4 subscriptions, legacy email subscriptions, and webhook subscriptions
 - **Reports & STIX** — Linux Audit reports and STIX 2.1 bundle export
@@ -30,10 +30,13 @@ using VulnersDotNet;
 using VulnersDotNet.Extensions;
 using VulnersDotNet.Models;
 
+var apiKey = Environment.GetEnvironmentVariable("VULNERS_API_KEY")
+    ?? throw new InvalidOperationException("Set the VULNERS_API_KEY environment variable.");
+
 var services = new ServiceCollection();
 services.AddVulners(options =>
 {
-    options.ApiKey = Environment.GetEnvironmentVariable("VULNERS_API_KEY")!;
+    options.ApiKey = apiKey;
 });
 
 using var provider = services.BuildServiceProvider();
@@ -64,7 +67,10 @@ var cpes = await client.Search.SearchCpeAsync("chrome", vendor: "google", size: 
 Console.WriteLine($"Best match: {cpes.BestMatch}");
 ```
 
-### Linux package audit
+### Linux package audit (V3, typed)
+
+`AuditPackagesAsync` provides typed RPM/DEB results. Use `LinuxAuditAsync` for the V4 endpoint,
+including APK packages and extended audit options.
 
 ```csharp
 var audit = await client.Audit.AuditPackagesAsync(
@@ -108,6 +114,27 @@ var results = await client.Audit.AuditHostAsync(
     {
         Part = "o", Vendor = "debian", Product = "debian_linux", Version = "12"
     });
+```
+
+### Smart Audit (V4 preview)
+
+[Smart Audit](https://docs.vulners.com/docs/api/smart-audit/) resolves raw, free-form software
+descriptions to CPEs before auditing them. The preview contract may change and each submitted
+software string is billed.
+
+```csharp
+var results = await client.Audit.AuditSmartAsync(
+    software: new[] { "Adobe Reader 5.3", "OpenSSL 1.0.1" },
+    catalog: "official"); // or "extended" for Vulners custom CPEs
+
+foreach (var item in results)
+{
+    Console.WriteLine($"{item.Input} -> {item.Cpe} ({item.Confidence:P0})");
+    foreach (var vulnerability in item.Vulnerabilities)
+    {
+        Console.WriteLine($"  {vulnerability.Id}: {vulnerability.Title}");
+    }
+}
 ```
 
 ### Windows KB audit
@@ -156,7 +183,17 @@ using var fileStream = File.Create("debian-12-cves.zip");
 await zipStream.CopyToAsync(fileStream);
 ```
 
-### Email subscriptions
+### Subscriptions (V4)
+
+```csharp
+var subscriptions = await client.SubscriptionV4.GetListAsync();
+var subscription = await client.SubscriptionV4.GetAsync("subscription-id");
+```
+
+Creation and updates accept the Vulners V4 subscription `query` and `delivery` dictionaries through
+`CreateAsync` and `UpdateAsync`; subscriptions can be removed with `DeleteAsync`.
+
+### Legacy email subscriptions (V3, deprecated)
 
 ```csharp
 // List subscriptions
@@ -249,7 +286,7 @@ var bundle = await client.Stix.MakeBundleByIdAsync("CVE-2021-44228");
 | `POST /api/v4/audit/host` | `Audit.AuditHostAsync()` |
 | `POST /api/v4/audit/cve` · `/cves` | `Audit.AuditCveAsync()` · `AuditCvesAsync()` |
 | `POST /api/v4/audit/library` | `Audit.AuditLibraryAsync()` |
-| `POST /api/v4/audit/smart` | `Audit.AuditSmartAsync()` |
+| `POST /api/v4/audit/smart` (preview) | `Audit.AuditSmartAsync()` |
 | `POST /api/v4/audit/sbom` | `Audit.SbomAuditAsync()` |
 | `POST /api/v4/audit/metadata` | `Audit.AuditPackageMetadataAsync()` |
 | `POST /api/v4/audit/package/{type}` | `Audit.AuditPackageAsync()` |
@@ -308,7 +345,10 @@ dotnet build
 # Format code
 dotnet csharpier format .
 
-# Run tests (requires VULNERS_API_KEY env var)
+# Run tests (credential-free tests pass; live integration tests skip without a key)
+dotnet test
+
+# Run live integration tests (provide the key through your environment or secret manager)
 VULNERS_API_KEY=your-key dotnet test
 ```
 
