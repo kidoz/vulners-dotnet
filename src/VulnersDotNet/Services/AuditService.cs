@@ -321,18 +321,43 @@ internal sealed class AuditService : BaseApiService, IAuditService
     }
 
     /// <inheritdoc />
-    public Task<JsonElement> AuditSmartAsync(
+    public Task<IReadOnlyList<SmartAuditResult>> AuditSmartAsync(
         IEnumerable<string> software,
+        CancellationToken cancellationToken = default
+    ) => AuditSmartAsync(software, "official", cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<SmartAuditResult>> AuditSmartAsync(
+        IEnumerable<string> software,
+        string catalog,
         CancellationToken cancellationToken = default
     )
     {
         var items = ValidateStringItems(software, nameof(software), 1, 500, maxItemLength: 512);
-        var request = new SmartAuditRequest { Software = items };
-        return PostV4Async<SmartAuditRequest, JsonElement>(
-            "audit/smart",
-            request,
-            cancellationToken
-        );
+#if NET8_0_OR_GREATER
+        ArgumentException.ThrowIfNullOrEmpty(catalog);
+#else
+        if (string.IsNullOrEmpty(catalog))
+            throw new ArgumentException("Value cannot be null or empty.", nameof(catalog));
+#endif
+        if (
+            !string.Equals(catalog, "official", StringComparison.Ordinal)
+            && !string.Equals(catalog, "extended", StringComparison.Ordinal)
+        )
+        {
+            throw new ArgumentException(
+                "Catalog must be either 'official' or 'extended'.",
+                nameof(catalog)
+            );
+        }
+
+        var request = new SmartAuditRequest { Software = items, Catalog = catalog };
+        return await PostV4Async<SmartAuditRequest, List<SmartAuditResult>>(
+                "audit/smart",
+                request,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />

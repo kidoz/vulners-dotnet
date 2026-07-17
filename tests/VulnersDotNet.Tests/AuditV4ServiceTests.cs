@@ -31,13 +31,22 @@ public class AuditV4ServiceTests : IntegrationTestBase
     [Fact]
     public async Task AuditSmartAsync_ResolvesSoftware()
     {
-        var result = await Client.Audit.AuditSmartAsync(
-            new[] { "Apache Log4j 2.14.1" },
-            TestContext.Current.CancellationToken
+        const string software = "OpenSSL 1.0.1";
+        var results = await Client.Audit.AuditSmartAsync(
+            new[] { software },
+            catalog: "official",
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(JsonValueKind.Array, result.ValueKind);
-        Assert.True(result.GetArrayLength() > 0);
+        var result = Assert.Single(results);
+        Assert.Equal(software, result.Input);
+        Assert.StartsWith("cpe:2.3:", result.Cpe, StringComparison.Ordinal);
+        Assert.InRange(result.Confidence, 0, 1);
+        Assert.NotEmpty(result.Vulnerabilities);
+
+        var vulnerability = result.Vulnerabilities[0];
+        Assert.False(string.IsNullOrEmpty(vulnerability.Id));
+        Assert.NotEmpty(vulnerability.Reasons);
     }
 
     [Fact]

@@ -382,12 +382,31 @@ public interface IAuditService
     );
 
     /// <summary>
-    /// Resolves and audits a list of free-form software strings (V4 apix; 1..500 items).
+    /// Resolves free-form software strings to CPEs and audits them for vulnerabilities
+    /// using the Smart Audit preview endpoint (V4; 1..500 items).
     /// </summary>
     /// <param name="software">Software strings (each 1..512 chars).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task<JsonElement> AuditSmartAsync(
+    /// <returns>One result per submitted string, in the same order as the input.</returns>
+    Task<IReadOnlyList<SmartAuditResult>> AuditSmartAsync(
         IEnumerable<string> software,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Resolves free-form software strings to CPEs and audits them for vulnerabilities
+    /// using the selected CPE catalog and the Smart Audit preview endpoint (V4; 1..500 items).
+    /// </summary>
+    /// <param name="software">Software strings (each 1..512 chars).</param>
+    /// <param name="catalog">
+    /// CPE catalog to match against: <c>official</c> for NVD CPEs only, or
+    /// <c>extended</c> to include Vulners custom CPEs.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>One result per submitted string, in the same order as the input.</returns>
+    Task<IReadOnlyList<SmartAuditResult>> AuditSmartAsync(
+        IEnumerable<string> software,
+        string catalog,
         CancellationToken cancellationToken = default
     );
 

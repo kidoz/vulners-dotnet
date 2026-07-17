@@ -206,6 +206,51 @@ public class ValidationTests
     }
 
     [Fact]
+    public async Task AuditSmartAsync_Empty_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSmartAsync(Array.Empty<string>())
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditSmartAsync_TooMany_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSmartAsync(Enumerable.Repeat("OpenSSL 1.0.1", 501))
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditSmartAsync_EmptyItem_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSmartAsync(new[] { "OpenSSL 1.0.1", "" })
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditSmartAsync_OverlongItem_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSmartAsync(new[] { new string('a', 513) })
+        );
+        Assert.Equal("software", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task AuditSmartAsync_InvalidCatalog_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _client.Audit.AuditSmartAsync(new[] { "OpenSSL 1.0.1" }, "community")
+        );
+        Assert.Equal("catalog", ex.ParamName);
+    }
+
+    [Fact]
     public async Task LinuxAuditAsync_EmptyPackages_Throws()
     {
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>

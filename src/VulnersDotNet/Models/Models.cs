@@ -724,6 +724,13 @@ public record VulnerabilityEntry
     public string Id { get; init; } = string.Empty;
 
     /// <summary>
+    /// Reasons the input software matched this vulnerability.
+    /// </summary>
+    [JsonPropertyName("reasons")]
+    public IReadOnlyList<VulnerabilityMatchReason> Reasons { get; init; } =
+        Array.Empty<VulnerabilityMatchReason>();
+
+    /// <summary>
     /// Vulnerability title.
     /// </summary>
     [JsonPropertyName("title")]
@@ -736,10 +743,131 @@ public record VulnerabilityEntry
     public string ShortDescription { get; init; } = string.Empty;
 
     /// <summary>
+    /// Vulnerability source type (for example, <c>cve</c>).
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = string.Empty;
+
+    /// <summary>
+    /// URL of the advisory on Vulners.
+    /// </summary>
+    [JsonPropertyName("href")]
+    public string Href { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Advisory publication time.
+    /// </summary>
+    [JsonPropertyName("published")]
+    public DateTimeOffset? Published { get; init; }
+
+    /// <summary>
+    /// Advisory last-modified time.
+    /// </summary>
+    [JsonPropertyName("modified")]
+    public DateTimeOffset? Modified { get; init; }
+
+    /// <summary>
+    /// AI-derived severity score, when returned by the API.
+    /// </summary>
+    [JsonPropertyName("ai_score")]
+    public VulnerabilityAiScore? AiScore { get; init; }
+
+    /// <summary>
     /// Gets any additional fields not explicitly modeled.
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
+}
+
+/// <summary>
+/// Explains why an audited software item matched a vulnerability rule.
+/// </summary>
+public record VulnerabilityMatchReason
+{
+    /// <summary>
+    /// Source of the match rule (for example, <c>nvd</c>).
+    /// </summary>
+    [JsonPropertyName("config")]
+    public string Config { get; init; } = string.Empty;
+
+    /// <summary>
+    /// OR-groups of AND-conditions from the API's <c>criterias</c> field.
+    /// </summary>
+    [JsonPropertyName("criterias")]
+    public IReadOnlyList<IReadOnlyList<VulnerabilityMatchCriterion>> CriteriaGroups { get; init; } =
+        Array.Empty<IReadOnlyList<VulnerabilityMatchCriterion>>();
+
+    /// <summary>
+    /// Gets any additional fields not explicitly modeled.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
+}
+
+/// <summary>
+/// One CPE condition in a vulnerability match rule.
+/// </summary>
+public record VulnerabilityMatchCriterion
+{
+    /// <summary>
+    /// CPE 2.3 criterion used by the match rule.
+    /// </summary>
+    [JsonPropertyName("criteria")]
+    public string Criteria { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether the criterion identifies a vulnerable configuration.
+    /// </summary>
+    [JsonPropertyName("vulnerable")]
+    public bool Vulnerable { get; init; }
+
+    /// <summary>
+    /// Inclusive lower version bound, when present.
+    /// </summary>
+    [JsonPropertyName("versionStartIncluding")]
+    public string? VersionStartIncluding { get; init; }
+
+    /// <summary>
+    /// Exclusive lower version bound, when present.
+    /// </summary>
+    [JsonPropertyName("versionStartExcluding")]
+    public string? VersionStartExcluding { get; init; }
+
+    /// <summary>
+    /// Inclusive upper version bound, when present.
+    /// </summary>
+    [JsonPropertyName("versionEndIncluding")]
+    public string? VersionEndIncluding { get; init; }
+
+    /// <summary>
+    /// Exclusive upper version bound, when present.
+    /// </summary>
+    [JsonPropertyName("versionEndExcluding")]
+    public string? VersionEndExcluding { get; init; }
+
+    /// <summary>
+    /// Gets any additional fields not explicitly modeled.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
+}
+
+/// <summary>
+/// AI-derived vulnerability severity data.
+/// </summary>
+public record VulnerabilityAiScore
+{
+    /// <summary>
+    /// Severity value from 0 to 10.
+    /// </summary>
+    [JsonPropertyName("value")]
+    public double Value { get; init; }
+
+    /// <summary>
+    /// Score uncertainty from 0 to 10.
+    /// </summary>
+    [JsonPropertyName("uncertainty")]
+    public double Uncertainty { get; init; }
 }
 
 // ===================== Windows KB Audit =====================
@@ -1637,6 +1765,55 @@ public record SmartAuditRequest
     /// </summary>
     [JsonPropertyName("software")]
     public IEnumerable<string> Software { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// CPE catalog to match against: <c>official</c> or <c>extended</c>.
+    /// </summary>
+    [JsonPropertyName("catalog")]
+    public string Catalog { get; init; } = "official";
+}
+
+/// <summary>
+/// Smart Audit result for one submitted free-form software string.
+/// </summary>
+public record SmartAuditResult
+{
+    /// <summary>
+    /// Original free-form software string.
+    /// </summary>
+    [JsonPropertyName("input")]
+    public string Input { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Resolved CPE 2.3 string, or an empty string when no CPE was found.
+    /// </summary>
+    [JsonPropertyName("cpe")]
+    public string Cpe { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Package URLs associated with the resolved software.
+    /// </summary>
+    [JsonPropertyName("purls")]
+    public IReadOnlyList<string> Purls { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Matcher confidence from 0 to 1.
+    /// </summary>
+    [JsonPropertyName("confidence")]
+    public double Confidence { get; init; }
+
+    /// <summary>
+    /// Vulnerabilities matched for the resolved CPE.
+    /// </summary>
+    [JsonPropertyName("vulnerabilities")]
+    public IReadOnlyList<VulnerabilityEntry> Vulnerabilities { get; init; } =
+        Array.Empty<VulnerabilityEntry>();
+
+    /// <summary>
+    /// Gets any additional fields not explicitly modeled by this preview API.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
 }
 
 /// <summary>
